@@ -2,9 +2,11 @@ import { useState, useRef } from 'react'
 import {
   Download, Upload, HelpCircle,
   Plus, Dumbbell, Play, History as HistoryIcon,
-  CheckCircle, AlertCircle,
+  CheckCircle, AlertCircle, Watch, RefreshCw,
 } from 'lucide-react'
 import { useDataIO } from '../hooks/useDataIO'
+import { useWatchSync } from '../hooks/useWatchSync'
+import { SYNC_STATUS } from '../services/xlink-protocol'
 import Modal from '../components/Modal'
 import type { ImportResult } from '../hooks/useDataIO'
 
@@ -38,10 +40,24 @@ const GUIDE_STEPS = [
 
 export default function SettingsPage() {
   const { downloadJSON, importData } = useDataIO()
+  const {
+    status: syncStatus,
+    statusDetail: syncDetail,
+    lastSyncAt,
+    isSyncing,
+    isConnected,
+    isBridgeAvailable,
+    initConnection,
+    pushToWatch,
+    pullFromWatch,
+    syncBidirectional,
+    disconnect,
+  } = useWatchSync()
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [importConfirm, setImportConfirm] = useState<File | null>(null)
   const [showGuide, setShowGuide] = useState(false)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleExport = async () => {
@@ -69,6 +85,61 @@ export default function SettingsPage() {
       setImportError(String(e))
     }
     setImportConfirm(null)
+  }
+
+  const handleSyncInit = async () => {
+    setSyncMessage('正在连接手表...')
+    try {
+      await initConnection('com.gemn.fitness.watch')
+    } catch {
+      setSyncMessage('连接失败')
+    }
+  }
+
+  const handleSyncBidirectional = async () => {
+    if (isSyncing) return
+    setSyncMessage('正在同步...')
+    const result = await syncBidirectional()
+    if (result.success) {
+      setSyncMessage('同步完成 ✓')
+      setTimeout(() => setSyncMessage(null), 3000)
+    } else {
+      setSyncMessage('同步失败: ' + (result.error || '未知错误'))
+    }
+  }
+
+  const handlePushToWatch = async () => {
+    if (isSyncing) return
+    setSyncMessage('正在导出到手表...')
+    const result = await pushToWatch()
+    if (result.success) {
+      setSyncMessage('导出成功 ✓')
+      setTimeout(() => setSyncMessage(null), 3000)
+    } else {
+      setSyncMessage('导出失败: ' + (result.error || '未知错误'))
+    }
+  }
+
+  const handlePullFromWatch = async () => {
+    if (isSyncing) return
+    setSyncMessage('正在从手表导入...')
+    const result = await pullFromWatch()
+    if (result.success && result.stats) {
+      setSyncMessage(`导入完成: ${result.stats.exercises}项目 ${result.stats.sessions}记录 ${result.stats.sets}组`)
+      setTimeout(() => setSyncMessage(null), 4000)
+    } else {
+      setSyncMessage('导入失败: ' + (result.error || '未知错误'))
+    }
+  }
+
+  const formatSyncTime = (iso: string | null) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    const now = new Date()
+    const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000)
+    if (diffMin < 1) return '刚刚'
+    if (diffMin < 60) return `${diffMin}分钟前`
+    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
 
   return (
@@ -130,6 +201,101 @@ export default function SettingsPage() {
             onChange={handleFileChange}
           />
         </div>
+      </div>
+
+      {/* Watch Sync */}
+      <div className="mb-6">
+        <h2 className="text-sm font-medium text-text2 uppercase tracking-wider mb-3">手表同步</h2>
+
+        {/* Connection Status */}
+        <div className="bg-surface border border-border rounded-xl p-4 mb-3">
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`w-3 h-3 rounded-full ${
+              isConnected ? 'bg-green-500' :
+              syncStatus === SYNC_STATUS.CONNECTING || syncStatus === SYNC_STATUS.SYNCING ? 'bg-blue-500' :
+              syncStatus === SYNC_STATUS.ERROR ? 'bg-red-500' : 'bg-gray-500'
+            }`} />
+            <span className="text-sm text-text">
+              {isConnected ? '已连接' :
+               syncStatus === SYNC_STATUS.CONNECTING ? '连接中...' :
+               syncStatus === SYNC_STATUS.SYNCING ? '同步中...' :
+               syncStatus === SYNC_STATUS.ERROR ? '连接错误' : '未连接'}
+            </span>
+            {lastSyncAt && (
+              <span className="text-xs text-text3 ml-auto">
+                上次同步: {formatSyncTime(lastSyncAt)}
+              </span>
+            )}
+          </div>
+
+          {/* Sync message */}
+          {syncMessage && (
+            <p className={`text-xs mb-3 ${
+              syncMessage.includes('失败') || syncMessage.includes('错误')
+                ? 'text-red-400' : 'text-green-400'
+            }`}>
+              {syncMessage}
+            </p>
+          )}
+
+          {/* Action buttons */}
+          <div className="space-y-2">
+            {/* Connect / Sync button */}
+            {!isConnected ? (
+              <button
+                onClick={handleSyncInit}
+                disabled={isSyncing}
+                className="w-full bg-accent text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-2 active:opacity-80 transition-opacity"
+              >
+                <Watch size={18} />
+                <span>{isBridgeAvailable ? '连接手表' : '连接手表 (需 SDK)'}</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleSyncBidirectional}
+                  disabled={isSyncing}
+                  className="w-full bg-accent text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-2 active:opacity-80 transition-opacity disabled:opacity-50"
+                >
+                  <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
+                  <span>{isSyncing ? '同步中...' : '一键同步'}</span>
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePushToWatch}
+                    disabled={isSyncing}
+                    className="flex-1 bg-surface2 border border-border text-text py-2.5 rounded-lg text-sm font-medium active:bg-surface transition-colors disabled:opacity-50"
+                  >
+                    ↑ 导出到手表
+                  </button>
+                  <button
+                    onClick={handlePullFromWatch}
+                    disabled={isSyncing}
+                    className="flex-1 bg-surface2 border border-border text-text py-2.5 rounded-lg text-sm font-medium active:bg-surface transition-colors disabled:opacity-50"
+                  >
+                    ↓ 从手表导入
+                  </button>
+                </div>
+                <button
+                  onClick={disconnect}
+                  className="w-full text-xs text-text3 py-2 active:text-text2 transition-colors"
+                >
+                  断开连接
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* SDK Notice */}
+        {!isBridgeAvailable && (
+          <div className="bg-warn/10 border border-warn/30 rounded-xl p-3">
+            <p className="text-xs text-warn/90">
+              ⚠️ 手表同步需集成 vivo 智能终端设备 SDK（device-rpc.aar）。
+              当前使用 Mock 模式，仅用于开发测试。
+            </p>
+          </div>
+        )}
       </div>
 
       {/* About */}

@@ -132,18 +132,20 @@ export function useDataIO() {
     await db.workoutSessions.clear()
     await db.exercises.clear()
 
-    // 导入训练项目
+    // 导入训练项目（保留原始 ID 映射，确保 workoutSets 引用正确）
     let exerciseCount = 0
+    const exerciseIdMap: Record<number, number> = {}
     for (const e of data.exercises) {
       const { id, createdAt, ...rest } = e
-      await db.exercises.add({
+      const newId = await db.exercises.add({
         ...rest,
         createdAt: new Date(createdAt),
       })
+      if (id != null) exerciseIdMap[id] = newId
       exerciseCount++
     }
 
-    // 导入训练记录
+    // 导入训练记录（保留原始 ID 映射）
     let sessionCount = 0
     const sessionIdMap: Record<number, number> = {}
     for (const s of data.workoutSessions) {
@@ -156,14 +158,14 @@ export function useDataIO() {
       sessionCount++
     }
 
-    // 导入组数记录（重新映射 sessionId）
+    // 导入组数记录（重新映射 sessionId 和 exerciseId）
     let setCount = 0
     for (const set of data.workoutSets) {
       const { id, sessionId, exerciseId, ...rest } = set
       await db.workoutSets.add({
         ...rest,
         sessionId: sessionIdMap[sessionId] ?? sessionId,
-        exerciseId,
+        exerciseId: exerciseIdMap[exerciseId] ?? exerciseId,
       })
       setCount++
     }
