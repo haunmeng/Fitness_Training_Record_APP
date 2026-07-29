@@ -106,8 +106,11 @@ class BlueXlinkBridge {
     return !this.isMock
   }
 
-  async init(packageName: string): Promise<void> {
-    const result = await this.plugin.init({ package: packageName })
+  async init(packageName: string, encryStr?: string): Promise<void> {
+    const result = await this.plugin.init({
+      package: packageName,
+      encryStr: encryStr || undefined,
+    })
     if (!result.success) throw new Error(result.error || 'Init failed')
   }
 

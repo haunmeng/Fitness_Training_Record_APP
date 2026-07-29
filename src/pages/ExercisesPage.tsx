@@ -4,6 +4,7 @@ import { useExercises } from '../hooks/useExercises'
 import ExerciseCard from '../components/ExerciseCard'
 import Modal from '../components/Modal'
 import type { Exercise } from '../types'
+import { EXERCISE_TAGS } from '../types'
 
 export default function ExercisesPage() {
   const { exercises, addExercise, updateExercise, deleteExercise } = useExercises()
@@ -15,6 +16,7 @@ export default function ExercisesPage() {
 
   // Form state
   const [formName, setFormName] = useState('')
+  const [formTags, setFormTags] = useState<string[]>([])
   const [maxWeight, setMaxWeight] = useState('')
   const [maxReps, setMaxReps] = useState('')
   const [maxSets, setMaxSets] = useState('')
@@ -22,9 +24,16 @@ export default function ExercisesPage() {
   const [workingReps, setWorkingReps] = useState('')
   const [workingSets, setWorkingSets] = useState('')
 
+  const toggleTag = (tag: string) => {
+    setFormTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+
   const openEdit = (exercise: Exercise) => {
     setEditExercise(exercise)
     setFormName(exercise.name)
+    setFormTags(exercise.tags ?? [])
     setMaxWeight(exercise.maxWeight?.toString() ?? '')
     setMaxReps(exercise.maxReps?.toString() ?? '')
     setMaxSets(exercise.maxSets?.toString() ?? '')
@@ -44,6 +53,7 @@ export default function ExercisesPage() {
     if (!editExercise?.id || !formName.trim()) return
     await updateExercise(editExercise.id, {
       name: formName.trim(),
+      tags: formTags,
       maxWeight: maxWeight ? Number(maxWeight) : undefined,
       maxReps: maxReps ? Number(maxReps) : undefined,
       maxSets: maxSets ? Number(maxSets) : undefined,
@@ -131,6 +141,27 @@ export default function ExercisesPage() {
               onChange={e => setFormName(e.target.value)}
               className="w-full bg-surface2 border border-border rounded-lg px-4 py-3 text-text placeholder-text3 focus:outline-none focus:border-accent transition-colors"
             />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm text-text2 mb-2">训练部位 / 标签</label>
+            <div className="flex flex-wrap gap-2">
+              {EXERCISE_TAGS.map(tag => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 ${
+                    formTags.includes(tag)
+                      ? 'bg-accent text-black border-accent'
+                      : 'bg-surface2 text-text3 border-border hover:border-accent/50'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Max Weight Record */}

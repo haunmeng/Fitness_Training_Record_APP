@@ -33,6 +33,15 @@ export default function ExerciseCard({ exercise, onClick, onLongPress }: Exercis
       {/* Info */}
       <div className="flex-1 min-w-0">
         <h4 className="font-medium text-text truncate">{exercise.name}</h4>
+        {exercise.tags && exercise.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {exercise.tags.map(tag => (
+              <span key={tag} className="px-2 py-0.5 rounded-full text-[10px] bg-accent/15 text-accent border border-accent/30">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex gap-3 mt-1 text-xs text-text3">
           {exercise.maxWeight != null && (
             <span>最大 {exercise.maxWeight}kg {exercise.maxSets}×{exercise.maxReps}</span>

@@ -24,6 +24,11 @@
 
         </activity>
 
+        <!-- ===== vivo 智能终端设备 SDK (BlueXlink) ===== -->
+        <!-- 登录 https://dev.vivo.com.cn → 管理中心 → 应用详情 → 复制 appid -->
+        <meta-data android:name="health.device.manager.version" android:value="1" />
+        <meta-data android:name="appid" android:value="106124337" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

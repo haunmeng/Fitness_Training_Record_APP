@@ -130,7 +130,7 @@ async function importData(payload: SyncPayload): Promise<{ exercises: number; se
 // ===================== Mock Bridge（SDK 就绪前使用） =====================
 
 interface BlueXlinkBridge {
-  init: (packageName: string) => Promise<void>
+  init: (packageName: string, encryStr?: string) => Promise<void>
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   send: (message: SyncMessage) => Promise<void>
@@ -147,7 +147,7 @@ function createMockBridge(): BlueXlinkBridge {
   return {
     isAvailable: false, // mock 模式下不可用
 
-    init: async (_packageName: string) => {
+    init: async (_packageName: string, _encryStr?: string) => {
       console.log('[BlueXlink Mock] init:', _packageName)
     },
 
@@ -317,12 +317,15 @@ export function useWatchSync() {
   }, [])
 
   // 初始化
-  const initConnection = useCallback(async (packageName = 'com.gemn.fitness.watch') => {
+  const initConnection = useCallback(async (
+    packageName = 'com.gemn.fitness.watch',
+    encryStr?: string,
+  ) => {
     setStatus(SYNC_STATUS.CONNECTING)
     setStatusDetail({ package: packageName })
 
     try {
-      await bridgeRef.current.init(packageName)
+      await bridgeRef.current.init(packageName, encryStr)
       bridgeRef.current.onMessage?.(handleMessage)
 
       bridgeRef.current.onStatusChange?.((newStatus, detail) => {

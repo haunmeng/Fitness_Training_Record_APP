@@ -29,6 +29,7 @@ export type SyncMessageType = (typeof MSG_TYPE)[keyof typeof MSG_TYPE]
 export interface Exercise {
   id?: number
   name: string
+  tags?: string[]
   maxWeight?: number
   maxReps?: number
   maxSets?: number
