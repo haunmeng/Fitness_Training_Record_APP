@@ -86,18 +86,16 @@ export default function SettingsPage() {
     setImportConfirm(null)
   }
 
-  const handleSyncInit = async () => {
-    setSyncMessage('正在连接手表...')
-    try {
-      await initConnection('com.gemn.fitness.watch')
-    } catch {
-      setSyncMessage('连接失败')
-    }
-  }
-
   const handleSyncBidirectional = async () => {
     if (isSyncing) return
     setSyncMessage('正在同步...')
+    if (!isConnected) {
+      const connected = await initConnection('com.gemn.fitness.watch')
+      if (!connected) {
+        setSyncMessage('连接失败，无法同步')
+        return
+      }
+    }
     const result = await syncBidirectional()
     if (result.success) {
       setSyncMessage('同步完成 ✓')
@@ -242,12 +240,12 @@ export default function SettingsPage() {
             {/* Connect / Sync button */}
             {!isConnected ? (
               <button
-                onClick={handleSyncInit}
+                onClick={handleSyncBidirectional}
                 disabled={isSyncing}
                 className="w-full bg-accent text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-2 active:opacity-80 transition-opacity"
               >
                 <Watch size={18} />
-                <span>{isBridgeAvailable ? '连接手表' : '连接手表 (需 SDK)'}</span>
+                <span>{isBridgeAvailable ? '连接并同步' : '连接并同步 (需 SDK)'}</span>
               </button>
             ) : (
               <>

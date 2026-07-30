@@ -236,6 +236,7 @@ export function useWatchSync() {
   const [isSyncing, setIsSyncing] = useState(false)
 
   const bridgeRef = useRef<BlueXlinkBridge>(createBridge())
+  const statusRef = useRef<SyncStatus>(SYNC_STATUS.DISCONNECTED)
   const pullResolverRef = useRef<((result: SyncResult) => void) | null>(null)
   const pushResolverRef = useRef<((result: SyncResult) => void) | null>(null)
 
@@ -343,6 +344,7 @@ export function useWatchSync() {
     packageName = 'com.gemn.fitness.watch',
     encryStr?: string,
   ) => {
+    statusRef.current = SYNC_STATUS.CONNECTING
     setStatus(SYNC_STATUS.CONNECTING)
     setStatusDetail({ package: packageName })
 
@@ -351,24 +353,29 @@ export function useWatchSync() {
       bridgeRef.current.onMessage?.(handleMessage)
 
       bridgeRef.current.onStatusChange?.((newStatus, detail) => {
+        statusRef.current = newStatus
         setStatus(newStatus)
         setStatusDetail(detail)
       })
 
       await bridgeRef.current.connect()
+      return true
     } catch (e) {
+      statusRef.current = SYNC_STATUS.ERROR
       setStatus(SYNC_STATUS.ERROR)
       setStatusDetail({ error: e instanceof Error ? e.message : String(e) })
+      return false
     }
   }, [handleMessage])
 
   // 推送数据到手表
   const pushToWatch = useCallback(async (): Promise<SyncResult> => {
-    if (status !== SYNC_STATUS.CONNECTED) {
+    if (statusRef.current !== SYNC_STATUS.CONNECTED) {
       return { success: false, error: '未连接到手表' }
     }
 
     setIsSyncing(true)
+    statusRef.current = SYNC_STATUS.SYNCING
     setStatus(SYNC_STATUS.SYNCING)
     setStatusDetail({ direction: 'push' })
 
@@ -377,6 +384,7 @@ export function useWatchSync() {
       const timeout = setTimeout(() => {
         pushResolverRef.current = null
         setIsSyncing(false)
+        statusRef.current = SYNC_STATUS.CONNECTED
         setStatus(SYNC_STATUS.CONNECTED)
         resolve({ success: false, error: '推送超时 — 未收到手表确认' })
       }, PUSH_TIMEOUT)
@@ -384,6 +392,7 @@ export function useWatchSync() {
       pushResolverRef.current = (result: SyncResult) => {
         clearTimeout(timeout)
         setIsSyncing(false)
+        statusRef.current = SYNC_STATUS.CONNECTED
         setStatus(SYNC_STATUS.CONNECTED)
         resolve(result)
       }
@@ -396,6 +405,7 @@ export function useWatchSync() {
         clearTimeout(timeout)
         pushResolverRef.current = null
         setIsSyncing(false)
+        statusRef.current = SYNC_STATUS.CONNECTED
         setStatus(SYNC_STATUS.CONNECTED)
         resolve({ success: false, error: e instanceof Error ? e.message : String(e) })
       }
@@ -404,11 +414,12 @@ export function useWatchSync() {
 
   // 从手表拉取数据
   const pullFromWatch = useCallback(async (): Promise<SyncResult> => {
-    if (status !== SYNC_STATUS.CONNECTED) {
+    if (statusRef.current !== SYNC_STATUS.CONNECTED) {
       return { success: false, error: '未连接到手表' }
     }
 
     setIsSyncing(true)
+    statusRef.current = SYNC_STATUS.SYNCING
     setStatus(SYNC_STATUS.SYNCING)
     setStatusDetail({ direction: 'pull' })
 
@@ -417,6 +428,7 @@ export function useWatchSync() {
       const timeout = setTimeout(() => {
         pullResolverRef.current = null
         setIsSyncing(false)
+        statusRef.current = SYNC_STATUS.CONNECTED
         setStatus(SYNC_STATUS.CONNECTED)
         resolve({ success: false, error: '拉取超时 — 未收到手表响应' })
       }, PULL_TIMEOUT)
@@ -424,6 +436,7 @@ export function useWatchSync() {
       pullResolverRef.current = (result: SyncResult) => {
         clearTimeout(timeout)
         setIsSyncing(false)
+        statusRef.current = SYNC_STATUS.CONNECTED
         setStatus(SYNC_STATUS.CONNECTED)
         resolve(result)
       }
@@ -435,6 +448,7 @@ export function useWatchSync() {
         clearTimeout(timeout)
         pullResolverRef.current = null
         setIsSyncing(false)
+        statusRef.current = SYNC_STATUS.CONNECTED
         setStatus(SYNC_STATUS.CONNECTED)
         resolve({ success: false, error: e instanceof Error ? e.message : String(e) })
       }
@@ -458,6 +472,7 @@ export function useWatchSync() {
   // 断开连接
   const disconnect = useCallback(async () => {
     await bridgeRef.current.disconnect()
+    statusRef.current = SYNC_STATUS.DISCONNECTED
     setStatus(SYNC_STATUS.DISCONNECTED)
     setStatusDetail({})
   }, [])
