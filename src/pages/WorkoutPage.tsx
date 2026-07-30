@@ -8,7 +8,12 @@ import { useExercises } from '../hooks/useExercises'
 import { useWorkout } from '../hooks/useWorkout'
 import WorkoutSetTracker from '../components/WorkoutSetTracker'
 import Modal from '../components/Modal'
-import { EXERCISE_TAGS } from '../types'
+import {
+  EXERCISE_TAGS,
+  EXERCISE_TAG_ALL,
+  EXERCISE_TAG_UNCATEGORIZED,
+  normalizeExerciseTags,
+} from '../types'
 
 export default function WorkoutPage() {
   const navigate = useNavigate()
@@ -27,7 +32,8 @@ export default function WorkoutPage() {
   // Exercise picker state
   const [showPicker, setShowPicker] = useState(false)
   const [quickAddName, setQuickAddName] = useState('')
-  const [pickerTag, setPickerTag] = useState('全部')
+  const [quickAddTags, setQuickAddTags] = useState<string[]>([])
+  const [pickerTag, setPickerTag] = useState(EXERCISE_TAG_ALL)
 
   // Current input state
   const [selectedExerciseId, setSelectedExerciseId] = useState<number | null>(null)
@@ -43,9 +49,11 @@ export default function WorkoutPage() {
   // Finish confirmation
   const [showFinish, setShowFinish] = useState(false)
 
-  const filteredPickerExercises = pickerTag === '全部'
+  const filteredPickerExercises = pickerTag === EXERCISE_TAG_ALL
     ? exercises
-    : exercises.filter(exercise => exercise.tags?.includes(pickerTag))
+    : pickerTag === EXERCISE_TAG_UNCATEGORIZED
+      ? exercises.filter(exercise => !exercise.tags?.length)
+      : exercises.filter(exercise => exercise.tags?.includes(pickerTag))
 
   // Auto-start session
   useEffect(() => {
@@ -89,8 +97,9 @@ export default function WorkoutPage() {
   const handleQuickAdd = async () => {
     const name = quickAddName.trim()
     if (!name) return
-    const exerciseId = await addExercise(name)
+    const exerciseId = await addExercise(name, { tags: normalizeExerciseTags(quickAddTags) })
     setQuickAddName('')
+    setQuickAddTags([])
     await handleSelectExercise(exerciseId as number)
   }
 
@@ -309,7 +318,7 @@ export default function WorkoutPage() {
       </div>
 
       {/* Exercise Picker Modal */}
-      <Modal open={showPicker} onClose={() => { setShowPicker(false); setQuickAddName(''); setPickerTag('全部') }} title="选择训练项目">
+      <Modal open={showPicker} onClose={() => { setShowPicker(false); setQuickAddName(''); setQuickAddTags([]); setPickerTag(EXERCISE_TAG_ALL) }} title="选择训练项目">
         {/* Quick Add */}
         <div className="flex gap-2 mb-3">
           <input
@@ -329,8 +338,30 @@ export default function WorkoutPage() {
           </button>
         </div>
 
+        <div className="mb-3">
+          <p className="text-xs text-text3 mb-2">新项目标签（可选）</p>
+          <div className="flex flex-wrap gap-2">
+            {EXERCISE_TAGS.map(tag => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setQuickAddTags(current => current.includes(tag)
+                  ? current.filter(item => item !== tag)
+                  : [...current, tag])}
+                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                  quickAddTags.includes(tag)
+                    ? 'bg-accent text-black border-accent'
+                    : 'bg-surface2 text-text3 border-border hover:border-accent/50'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-2 mb-3">
-          {['全部', ...EXERCISE_TAGS].map(tag => (
+          {[EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED, ...EXERCISE_TAGS].map(tag => (
             <button
               key={tag}
               type="button"
@@ -362,7 +393,7 @@ export default function WorkoutPage() {
               <p className="text-text3 text-sm">没有匹配的训练项目</p>
               <button
                 type="button"
-                onClick={() => setPickerTag('全部')}
+                onClick={() => setPickerTag(EXERCISE_TAG_ALL)}
                 className="text-accent text-sm mt-2"
               >
                 显示全部项目

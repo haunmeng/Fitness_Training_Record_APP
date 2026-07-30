@@ -4,7 +4,7 @@ import { useExercises } from '../hooks/useExercises'
 import ExerciseCard from '../components/ExerciseCard'
 import Modal from '../components/Modal'
 import type { Exercise } from '../types'
-import { EXERCISE_TAGS } from '../types'
+import { EXERCISE_TAGS, EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED } from '../types'
 
 export default function ExercisesPage() {
   const { exercises, addExercise, updateExercise, deleteExercise } = useExercises()
@@ -13,7 +13,7 @@ export default function ExercisesPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [editExercise, setEditExercise] = useState<Exercise | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Exercise | null>(null)
-  const [activeTag, setActiveTag] = useState('全部')
+  const [activeTag, setActiveTag] = useState(EXERCISE_TAG_ALL)
 
   // Form state
   const [formName, setFormName] = useState('')
@@ -25,9 +25,11 @@ export default function ExercisesPage() {
   const [workingReps, setWorkingReps] = useState('')
   const [workingSets, setWorkingSets] = useState('')
 
-  const filteredExercises = activeTag === '全部'
+  const filteredExercises = activeTag === EXERCISE_TAG_ALL
     ? exercises
-    : exercises.filter(exercise => exercise.tags?.includes(activeTag))
+    : activeTag === EXERCISE_TAG_UNCATEGORIZED
+      ? exercises.filter(exercise => !exercise.tags?.length)
+      : exercises.filter(exercise => exercise.tags?.includes(activeTag))
 
   const toggleTag = (tag: string) => {
     setFormTags(prev =>
@@ -94,7 +96,7 @@ export default function ExercisesPage() {
 
       {/* Tag filter */}
       <div className="flex flex-wrap gap-2 mb-5">
-        {['全部', ...EXERCISE_TAGS].map(tag => (
+        {[EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED, ...EXERCISE_TAGS].map(tag => (
           <button
             key={tag}
             type="button"
@@ -121,7 +123,7 @@ export default function ExercisesPage() {
           <p className="text-text3">没有匹配的训练项目</p>
           <button
             type="button"
-            onClick={() => setActiveTag('全部')}
+            onClick={() => setActiveTag(EXERCISE_TAG_ALL)}
             className="text-accent text-sm mt-2"
           >
             显示全部项目

@@ -6,6 +6,13 @@ export const EXERCISE_TAGS = [
 
 export type ExerciseTag = typeof EXERCISE_TAGS[number]
 
+export const EXERCISE_TAG_ALL = '全部'
+export const EXERCISE_TAG_UNCATEGORIZED = '未分类'
+
+export function normalizeExerciseTags(tags?: readonly string[] | null): string[] {
+  return [...new Set((tags ?? []).map(tag => tag.trim()).filter(Boolean))]
+}
+
 export interface Exercise {
   id?: number;
   name: string;

@@ -30,6 +30,13 @@ allprojects {
     }
 }
 
+subprojects { subproject ->
+    subproject.tasks.configureEach { task ->
+        if (task.hasProperty('kotlinOptions')) {
+            task.kotlinOptions.jvmTarget = '17'
+        }
+    }
+}
 task clean(type: Delete) {
     delete rootProject.buildDir
 }

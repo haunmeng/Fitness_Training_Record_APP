@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { db } from '../db/database'
+import { normalizeExerciseTags } from '../types'
 
 export interface ExportData {
   version: number
@@ -15,6 +16,7 @@ export interface ExportData {
     workingWeight?: number
     workingReps?: number
     workingSets?: number
+    tags: string[]
     createdAt: string
   }>
   workoutSessions: Array<{
@@ -53,6 +55,7 @@ export function useDataIO() {
       exportedAt: new Date().toISOString(),
       exercises: exercises.map(e => ({
         ...e,
+        tags: normalizeExerciseTags(e.tags),
         createdAt: e.createdAt.toISOString(),
       })),
       workoutSessions: workoutSessions.map(s => ({
@@ -139,6 +142,7 @@ export function useDataIO() {
       const { id, createdAt, ...rest } = e
       const newId = await db.exercises.add({
         ...rest,
+        tags: normalizeExerciseTags(rest.tags),
         createdAt: new Date(createdAt),
       })
       if (id != null) exerciseIdMap[id] = newId

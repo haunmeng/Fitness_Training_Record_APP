@@ -26,6 +26,7 @@ import {
   validatePayload,
 } from '../services/xlink-protocol'
 import { blueXlinkBridge } from '../services/bluexlink-bridge'
+import { normalizeExerciseTags } from '../types'
 
 // ===================== 导出数据 =====================
 
@@ -39,6 +40,7 @@ async function exportData(): Promise<SyncPayload> {
     exportedAt: new Date().toISOString(),
     exercises: exercises.map(e => ({
       ...e,
+      tags: normalizeExerciseTags(e.tags),
       createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : String(e.createdAt),
     })),
     workoutSessions: workoutSessions.map(s => ({
@@ -74,11 +76,13 @@ async function importData(payload: SyncPayload): Promise<{ exercises: number; se
     if (id != null && existingExerciseIds.has(id)) {
       await db.exercises.update(id, {
         ...rest,
+        tags: normalizeExerciseTags(rest.tags),
         createdAt: new Date(createdAt),
       })
     } else {
       await db.exercises.add({
         ...rest,
+        tags: normalizeExerciseTags(rest.tags),
         createdAt: new Date(createdAt),
       })
     }
