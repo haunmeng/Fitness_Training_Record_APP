@@ -8,6 +8,7 @@ import { useExercises } from '../hooks/useExercises'
 import { useWorkout } from '../hooks/useWorkout'
 import WorkoutSetTracker from '../components/WorkoutSetTracker'
 import Modal from '../components/Modal'
+import { EXERCISE_TAGS } from '../types'
 
 export default function WorkoutPage() {
   const navigate = useNavigate()
@@ -26,6 +27,7 @@ export default function WorkoutPage() {
   // Exercise picker state
   const [showPicker, setShowPicker] = useState(false)
   const [quickAddName, setQuickAddName] = useState('')
+  const [pickerTag, setPickerTag] = useState('全部')
 
   // Current input state
   const [selectedExerciseId, setSelectedExerciseId] = useState<number | null>(null)
@@ -40,6 +42,10 @@ export default function WorkoutPage() {
 
   // Finish confirmation
   const [showFinish, setShowFinish] = useState(false)
+
+  const filteredPickerExercises = pickerTag === '全部'
+    ? exercises
+    : exercises.filter(exercise => exercise.tags?.includes(pickerTag))
 
   // Auto-start session
   useEffect(() => {
@@ -303,7 +309,7 @@ export default function WorkoutPage() {
       </div>
 
       {/* Exercise Picker Modal */}
-      <Modal open={showPicker} onClose={() => { setShowPicker(false); setQuickAddName('') }} title="选择训练项目">
+      <Modal open={showPicker} onClose={() => { setShowPicker(false); setQuickAddName(''); setPickerTag('全部') }} title="选择训练项目">
         {/* Quick Add */}
         <div className="flex gap-2 mb-3">
           <input
@@ -323,6 +329,23 @@ export default function WorkoutPage() {
           </button>
         </div>
 
+        <div className="flex flex-wrap gap-2 mb-3">
+          {['全部', ...EXERCISE_TAGS].map(tag => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setPickerTag(tag)}
+              className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                pickerTag === tag
+                  ? 'bg-accent text-black border-accent'
+                  : 'bg-surface2 text-text3 border-border hover:border-accent/50'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-1 max-h-[50vh] overflow-y-auto">
           {exercises.length === 0 ? (
             <div className="text-center py-6">
@@ -334,8 +357,19 @@ export default function WorkoutPage() {
                 去添加项目
               </button>
             </div>
+          ) : filteredPickerExercises.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-text3 text-sm">没有匹配的训练项目</p>
+              <button
+                type="button"
+                onClick={() => setPickerTag('全部')}
+                className="text-accent text-sm mt-2"
+              >
+                显示全部项目
+              </button>
+            </div>
           ) : (
-            exercises.map((exercise) => {
+            filteredPickerExercises.map((exercise) => {
               const alreadyAdded = activeExercises.some(ae => ae.exercise.id === exercise.id)
               return (
                 <button
@@ -354,6 +388,9 @@ export default function WorkoutPage() {
                     </div>
                     <div className="text-left">
                       <p className="text-sm font-medium text-text">{exercise.name}</p>
+                      {exercise.tags && exercise.tags.length > 0 && (
+                        <p className="text-[10px] text-accent mt-0.5">{exercise.tags.join(' · ')}</p>
+                      )}
                       {exercise.workingWeight && (
                         <p className="text-xs text-text3">
                           {exercise.workingWeight}kg {exercise.workingSets}×{exercise.workingReps}

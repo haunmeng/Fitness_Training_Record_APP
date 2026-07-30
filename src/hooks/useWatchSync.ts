@@ -25,6 +25,7 @@ import {
   validateMessage,
   validatePayload,
 } from '../services/xlink-protocol'
+import { blueXlinkBridge } from '../services/bluexlink-bridge'
 
 // ===================== 导出数据 =====================
 
@@ -137,6 +138,7 @@ interface BlueXlinkBridge {
   onMessage: ((callback: (msg: SyncMessage) => void) => void) | null
   onStatusChange: ((callback: StatusChangeCallback) => void) | null
   isAvailable: boolean
+  cleanup?: () => void
 }
 
 function createMockBridge(): BlueXlinkBridge {
@@ -199,10 +201,30 @@ function createMockBridge(): BlueXlinkBridge {
       statusCallback = callback
     },
 
-    get isAvailable() {
-      return false
-    },
-  } as BlueXlinkBridge
+  }
+}
+
+// 真实 Android 插件适配器；浏览器没有原生插件时仍使用上面的 Mock。
+function createNativeBridge(): BlueXlinkBridge {
+  return {
+    isAvailable: blueXlinkBridge.isAvailable,
+    init: (packageName, encryStr) => blueXlinkBridge.init(packageName, encryStr),
+    connect: () => blueXlinkBridge.connect(),
+    disconnect: () => blueXlinkBridge.disconnect(),
+    send: (message) => blueXlinkBridge.send(message),
+    onMessage: (callback) => blueXlinkBridge.onMessage(callback),
+    onStatusChange: (callback) => blueXlinkBridge.onStatusChange((status, detail) => {
+      const normalizedStatus = Object.values(SYNC_STATUS).includes(status as SyncStatus)
+        ? status as SyncStatus
+        : SYNC_STATUS.ERROR
+      callback(normalizedStatus, detail)
+    }),
+    cleanup: () => blueXlinkBridge.cleanup(),
+  }
+}
+
+function createBridge(): BlueXlinkBridge {
+  return blueXlinkBridge.isAvailable ? createNativeBridge() : createMockBridge()
 }
 
 // ===================== Hook =====================
@@ -213,7 +235,7 @@ export function useWatchSync() {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
-  const bridgeRef = useRef<BlueXlinkBridge>(createMockBridge())
+  const bridgeRef = useRef<BlueXlinkBridge>(createBridge())
   const pullResolverRef = useRef<((result: SyncResult) => void) | null>(null)
   const pushResolverRef = useRef<((result: SyncResult) => void) | null>(null)
 
@@ -354,6 +376,8 @@ export function useWatchSync() {
       const PUSH_TIMEOUT = 15000
       const timeout = setTimeout(() => {
         pushResolverRef.current = null
+        setIsSyncing(false)
+        setStatus(SYNC_STATUS.CONNECTED)
         resolve({ success: false, error: '推送超时 — 未收到手表确认' })
       }, PUSH_TIMEOUT)
 
@@ -392,6 +416,8 @@ export function useWatchSync() {
       const PULL_TIMEOUT = 15000
       const timeout = setTimeout(() => {
         pullResolverRef.current = null
+        setIsSyncing(false)
+        setStatus(SYNC_STATUS.CONNECTED)
         resolve({ success: false, error: '拉取超时 — 未收到手表响应' })
       }, PULL_TIMEOUT)
 
@@ -440,6 +466,7 @@ export function useWatchSync() {
   useEffect(() => {
     return () => {
       bridgeRef.current.disconnect()
+      bridgeRef.current.cleanup?.()
     }
   }, [])
 

@@ -13,6 +13,7 @@ export default function ExercisesPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [editExercise, setEditExercise] = useState<Exercise | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Exercise | null>(null)
+  const [activeTag, setActiveTag] = useState('全部')
 
   // Form state
   const [formName, setFormName] = useState('')
@@ -23,6 +24,10 @@ export default function ExercisesPage() {
   const [workingWeight, setWorkingWeight] = useState('')
   const [workingReps, setWorkingReps] = useState('')
   const [workingSets, setWorkingSets] = useState('')
+
+  const filteredExercises = activeTag === '全部'
+    ? exercises
+    : exercises.filter(exercise => exercise.tags?.includes(activeTag))
 
   const toggleTag = (tag: string) => {
     setFormTags(prev =>
@@ -44,8 +49,9 @@ export default function ExercisesPage() {
 
   const handleAdd = async () => {
     if (!formName.trim()) return
-    await addExercise(formName.trim())
+    await addExercise(formName.trim(), { tags: formTags })
     setFormName('')
+    setFormTags([])
     setShowAdd(false)
   }
 
@@ -79,11 +85,29 @@ export default function ExercisesPage() {
           <p className="text-text3 text-sm mt-1">{exercises.length} 个项目</p>
         </div>
         <button
-          onClick={() => { setFormName(''); setShowAdd(true) }}
+          onClick={() => { setFormName(''); setFormTags([]); setShowAdd(true) }}
           className="w-10 h-10 rounded-full bg-accent text-black flex items-center justify-center active:scale-95 transition-transform shadow-lg shadow-accent/20"
         >
           <Plus size={22} />
         </button>
+      </div>
+
+      {/* Tag filter */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {['全部', ...EXERCISE_TAGS].map(tag => (
+          <button
+            key={tag}
+            type="button"
+            onClick={() => setActiveTag(tag)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              activeTag === tag
+                ? 'bg-accent text-black border-accent'
+                : 'bg-surface2 text-text3 border-border hover:border-accent/50'
+            }`}
+          >
+            {tag}
+          </button>
+        ))}
       </div>
 
       {/* Exercise List */}
@@ -92,9 +116,20 @@ export default function ExercisesPage() {
           <p className="text-text3">还没有训练项目</p>
           <p className="text-text3 text-xs mt-1">点击右上角 + 添加</p>
         </div>
+      ) : filteredExercises.length === 0 ? (
+        <div className="bg-surface border border-border rounded-xl p-8 text-center">
+          <p className="text-text3">没有匹配的训练项目</p>
+          <button
+            type="button"
+            onClick={() => setActiveTag('全部')}
+            className="text-accent text-sm mt-2"
+          >
+            显示全部项目
+          </button>
+        </div>
       ) : (
         <div className="space-y-2">
-          {exercises.map((exercise) => (
+          {filteredExercises.map((exercise) => (
             <ExerciseCard
               key={exercise.id}
               exercise={exercise}
@@ -119,6 +154,25 @@ export default function ExercisesPage() {
               autoFocus
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
+          </div>
+          <div>
+            <label className="block text-sm text-text2 mb-2">训练部位 / 标签</label>
+            <div className="flex flex-wrap gap-2">
+              {EXERCISE_TAGS.map(tag => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 ${
+                    formTags.includes(tag)
+                      ? 'bg-accent text-black border-accent'
+                      : 'bg-surface2 text-text3 border-border hover:border-accent/50'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
           <button
             onClick={handleAdd}

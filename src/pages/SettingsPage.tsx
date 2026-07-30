@@ -42,7 +42,6 @@ export default function SettingsPage() {
   const { downloadJSON, importData } = useDataIO()
   const {
     status: syncStatus,
-    statusDetail: syncDetail,
     lastSyncAt,
     isSyncing,
     isConnected,

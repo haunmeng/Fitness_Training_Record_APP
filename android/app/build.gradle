@@ -35,7 +35,7 @@ repositories {
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
     // ===== vivo BlueXlink 智能终端设备通信 SDK =====
     // 1. 从 https://developers-watch.vivo.com.cn 下载 device-rpc.aar
     // 2. 放到 android/app/libs/device-rpc.aar

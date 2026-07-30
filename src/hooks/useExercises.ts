@@ -7,10 +7,11 @@ export function useExercises() {
     db.exercises.orderBy('createdAt').reverse().toArray()
   ) ?? []
 
-  const addExercise = async (name: string) => {
+  const addExercise = async (name: string, data: Partial<Exercise> = {}) => {
     const exercise: Exercise = {
       name: name.trim(),
       createdAt: new Date(),
+      ...data,
     }
     return db.exercises.add(exercise)
   }

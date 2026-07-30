@@ -31,7 +31,7 @@ if %errorlevel% neq 0 (
 )
 
 echo [5/6] 修复 Java 版本...
-powershell -Command "(Get-Content 'C:\temp\fitness\node_modules\@capacitor\android\capacitor\build.gradle') -replace 'JavaVersion.VERSION_21', 'JavaVersion.VERSION_17' | Set-Content 'C:\temp\fitness\node_modules\@capacitor\android\capacitor\build.gradle'"
+powershell -Command "$files = @(Get-ChildItem 'C:\temp\fitness\node_modules\@capacitor' -Recurse -Filter build.gradle | Select-Object -ExpandProperty FullName); $files += 'C:\temp\fitness\android\app\capacitor.build.gradle'; $utf8 = New-Object System.Text.UTF8Encoding($false); foreach ($file in $files) { $text = [System.IO.File]::ReadAllText($file) -replace 'JavaVersion.VERSION_21', 'JavaVersion.VERSION_17'; [System.IO.File]::WriteAllText($file, $text, $utf8) }"
 
 echo [6/6] 构建 APK...
 cd /d "C:\temp\fitness\android\"

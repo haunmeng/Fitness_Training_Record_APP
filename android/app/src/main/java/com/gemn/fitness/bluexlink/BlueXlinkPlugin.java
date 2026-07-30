@@ -1,268 +1,224 @@
-/**
- * BlueXlink Capacitor Plugin — 真实 SDK 模式
- *
- * vivo 智能终端设备 SDK（device-rpc.aar）
- * 手表端 ↔ 手机端 BlueXlink 双向数据同步。
- */
-
 package com.gemn.fitness.bluexlink;
 
-import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import org.json.JSONObject;
+import com.vivo.health.deviceRpcSdk.Constant;
+import com.vivo.health.deviceRpcSdk.DeviceRpcManager;
+import com.vivo.health.deviceRpcSdk.DeviceRpcManager.InitCallBack;
+import com.vivo.health.deviceRpcSdk.client.RpcClient;
+import com.vivo.health.deviceRpcSdk.data.Notification;
+import com.vivo.health.deviceRpcSdk.data.Request;
+import com.vivo.health.deviceRpcSdk.service.IDataReceiver;
+
 import org.json.JSONException;
 
-import com.vivo.device.rpc.DeviceRpcManager;
-import com.vivo.device.rpc.InitCallback;
-import com.vivo.device.rpc.ConnectCallback;
-import com.vivo.device.rpc.SendCallback;
-
+/** Capacitor bridge for vivo's device-rpc SDK. */
 @CapacitorPlugin(name = "BlueXlink")
 public class BlueXlinkPlugin extends Plugin {
 
     private static final String TAG = "BlueXlinkPlugin";
-
-    /**
-     * SDK 就绪后改为 false，取消注释各方法中的 REAL SDK 代码块
-     */
-    private static final boolean USE_MOCK = false;
-
-    /**
-     * vivo 开放平台分配的 RPC SDK 密钥
-     * 申请路径：dev.vivo.com.cn → 管理中心 → 应用详情 → 智能终端SDK密钥
-     */
-    private static final String ENCRY_STR = "9d540aa1662c449bac28118e4df7be9f";
-
-    /**
-     * vivo 开放平台分配的 APP-ID
-     */
     private static final String APP_ID = "106124337";
+    private static final String ENCRY_STR = "9d540aa1662c449bac28118e4df7be9f";
+    private static final long STATUS_POLL_MS = 2000L;
 
-    private boolean initialized = false;
-    private boolean connected = false;
-
-    // SDK 就绪后取消注释:
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private DeviceRpcManager rpcManager;
+    private String watchPackage = "com.gemn.fitness.watch";
+    private boolean initialized;
+    private boolean connected;
+    private boolean receiverRegistered;
+
+    private final Runnable statusPoller = new Runnable() {
+        @Override
+        public void run() {
+            updateConnectionStatus();
+            if (receiverRegistered) {
+                mainHandler.postDelayed(this, STATUS_POLL_MS);
+            }
+        }
+    };
+
+    private final IDataReceiver dataReceiver = new IDataReceiver() {
+        @Override
+        public void onReceiveRequest(Request request) {
+            handleIncomingData(request.getData());
+            if (rpcManager != null) {
+                rpcManager.onResponse(new com.vivo.health.deviceRpcSdk.data.Response.Builder()
+                        .build(request.getAction())
+                        .code(0)
+                        .pkgName(request.getOriginPkgName())
+                        .originPkgName(rpcManager.getOriginPkgName())
+                        .seqId(request.getSeqId())
+                        .modelVersion(request.getModelVersion())
+                        .build());
+            }
+        }
+
+        @Override
+        public void onReceiveNotification(Notification notification) {
+            handleIncomingData(notification.getData());
+        }
+    };
 
     @Override
     public void load() {
-        Log.i(TAG, "BlueXlinkPlugin loaded, mock mode: " + USE_MOCK);
+        Log.i(TAG, "BlueXlinkPlugin loaded");
     }
 
-    /**
-     * 初始化 SDK
-     *
-     * 手表端调用: interconnect.instance({ package: 'com.gemn.fitness' })
-     * 手机端需传入手表 App 的 package 名称
-     *
-     * @param call.data.package  手表 App 包名 (如 "com.gemn.fitness.watch")
-     * @param call.data.encryStr vivo 开放平台分配的 SDK 密钥
-     */
     @PluginMethod
     public void init(PluginCall call) {
-        String watchPackage = call.getString("package", "com.gemn.fitness.watch");
+        watchPackage = call.getString("package", "com.gemn.fitness.watch");
         String encryStr = call.getString("encryStr", ENCRY_STR);
-
-        Log.i(TAG, "init: watchPackage=" + watchPackage + ", encryStr=" + (encryStr.isEmpty() ? "(empty)" : "***"));
 
         try {
             rpcManager = DeviceRpcManager.getInstance();
-            rpcManager.init(getContext(), encryStr, new InitCallback() {
+            rpcManager.init(getContext(), APP_ID, encryStr, new InitCallBack() {
                 @Override
-                public void onSuccess() {
-                    initialized = true;
-                    Log.i(TAG, "SDK init success");
+                public void initResult(boolean success, String message) {
+                    initialized = success;
+                    if (success) {
+                        registerReceiver();
+                    }
                     JSObject result = new JSObject();
-                    result.put("success", true);
-                    result.put("message", "SDK initialized");
-                    call.resolve(result);
-                }
-
-                @Override
-                public void onFailure(int code, String message) {
-                    Log.e(TAG, "SDK init failed: [" + code + "] " + message);
-                    JSObject result = new JSObject();
-                    result.put("success", false);
-                    result.put("error", "Init failed: [" + code + "] " + message);
+                    result.put("success", success);
+                    if (success) {
+                        result.put("message", message == null ? "SDK initialized" : message);
+                    } else {
+                        result.put("error", message == null ? "SDK initialization failed" : message);
+                    }
                     call.resolve(result);
                 }
             });
         } catch (Exception e) {
             Log.e(TAG, "SDK init exception", e);
-            JSObject result = new JSObject();
-            result.put("success", false);
-            result.put("error", "Init exception: " + e.getMessage());
-            call.resolve(result);
+            call.resolve(failure("Init exception: " + e.getMessage()));
         }
     }
 
-    /**
-     * 连接手表
-     *
-     * 手表端通过 interconnect.instance({package}) 发起连接，
-     * 手机端 SDK 自动响应配对请求。
-     */
     @PluginMethod
     public void connect(PluginCall call) {
-        if (!initialized) {
-            JSObject result = new JSObject();
-            result.put("success", false);
-            result.put("error", "SDK not initialized — call init() first");
-            call.resolve(result);
+        if (!initialized || rpcManager == null) {
+            call.resolve(failure("SDK not initialized - call init() first"));
             return;
         }
 
-        Log.i(TAG, "connect called");
+        registerReceiver();
+        notifyStatus("connecting");
+        updateConnectionStatus();
+        mainHandler.removeCallbacks(statusPoller);
+        mainHandler.post(statusPoller);
 
-        try {
-            rpcManager.connect(new ConnectCallback() {
-                @Override
-                public void onConnected() {
-                    connected = true;
-                    Log.i(TAG, "Watch connected");
-                    notifyConnectionStatus("connected");
-                }
-
-                @Override
-                public void onDisconnected() {
-                    connected = false;
-                    Log.i(TAG, "Watch disconnected");
-                    notifyConnectionStatus("disconnected");
-                }
-
-                @Override
-                public void onMessage(String messageJson) {
-                    Log.d(TAG, "Message from watch: " + messageJson);
-                    notifyMessageReceived(messageJson);
-                }
-            });
-
-            JSObject result = new JSObject();
-            result.put("success", true);
-            result.put("status", "connecting");
-            call.resolve(result);
-        } catch (Exception e) {
-            Log.e(TAG, "Connect exception", e);
-            JSObject result = new JSObject();
-            result.put("success", false);
-            result.put("error", "Connect failed: " + e.getMessage());
-            call.resolve(result);
-        }
+        JSObject result = new JSObject();
+        result.put("success", true);
+        result.put("status", connected ? "connected" : "connecting");
+        call.resolve(result);
     }
 
-    /**
-     * 断开与手表的连接
-     */
     @PluginMethod
     public void disconnect(PluginCall call) {
-        Log.i(TAG, "disconnect called");
-
-        try {
-            if (rpcManager != null) {
-                rpcManager.disconnect();
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Disconnect error", e);
-        }
-
-        connected = false;
-        notifyConnectionStatus("disconnected");
-
+        mainHandler.removeCallbacks(statusPoller);
+        setConnected(false, "disconnected");
         JSObject result = new JSObject();
         result.put("success", true);
         call.resolve(result);
     }
 
-    /**
-     * 发送消息到手表
-     *
-     * 手表端通过 connect.onMessage 接收消息。
-     * 消息格式遵循两端约定的同步协议（xlink-protocol.ts / xlink-sync.js）：
-     *   { type: "sync_push"|"sync_pull"|..., version: 1, timestamp: "...", payload: {...} }
-     *
-     * @param call.data  完整的 SyncMessage JSON 对象
-     */
     @PluginMethod
     public void send(PluginCall call) {
-        if (!connected) {
-            JSObject result = new JSObject();
-            result.put("success", false);
-            result.put("error", "Not connected to watch — call connect() first");
-            call.resolve(result);
+        if (!initialized || rpcManager == null) {
+            call.resolve(failure("SDK not initialized"));
             return;
         }
-
-        JSObject data = call.getData();
-        Log.i(TAG, "send: " + data.toString());
+        if (!connected) {
+            updateConnectionStatus();
+            if (!connected) {
+                call.resolve(failure("Watch is not connected"));
+                return;
+            }
+        }
 
         try {
-            rpcManager.sendRequest(data.toString(), new SendCallback() {
-                @Override
-                public void onSuccess(String response) {
-                    Log.d(TAG, "Send success, response: " + response);
-                }
-
-                @Override
-                public void onFailure(int code, String message) {
-                    Log.e(TAG, "Send failed: [" + code + "] " + message);
-                }
-            });
-
+            Notification notification = new Notification.Builder()
+                    .action(Constant.Action.ACTION_DEVICE_BUSINESS_DATA)
+                    .modelVersion(1)
+                    .pkgName(watchPackage)
+                    .data(call.getData().toString())
+                    .build();
+            RpcClient.getInstance().notify(notification);
             JSObject result = new JSObject();
             result.put("success", true);
             call.resolve(result);
         } catch (Exception e) {
             Log.e(TAG, "Send exception", e);
-            JSObject result = new JSObject();
-            result.put("success", false);
-            result.put("error", "Send failed: " + e.getMessage());
-            call.resolve(result);
+            call.resolve(failure("Send failed: " + e.getMessage()));
         }
     }
 
-    /**
-     * 查询连接状态
-     */
     @PluginMethod
     public void getStatus(PluginCall call) {
+        updateConnectionStatus();
         JSObject result = new JSObject();
         result.put("initialized", initialized);
         result.put("connected", connected);
-        result.put("mock", USE_MOCK);
         call.resolve(result);
     }
 
-    // ==================== 事件通知 ====================
+    private void registerReceiver() {
+        if (rpcManager != null && !receiverRegistered) {
+            rpcManager.registerDataReceiver(dataReceiver);
+            receiverRegistered = true;
+        }
+    }
 
-    /**
-     * 通知 JS 层连接状态变化
-     */
-    private void notifyConnectionStatus(String status) {
+    private void updateConnectionStatus() {
+        boolean nextConnected = false;
+        if (initialized && rpcManager != null) {
+            try {
+                nextConnected = RpcClient.getInstance().isConnected(watchPackage);
+            } catch (Exception e) {
+                Log.w(TAG, "Unable to query watch connection", e);
+            }
+        }
+        if (nextConnected != connected) {
+            setConnected(nextConnected, nextConnected ? "connected" : "disconnected");
+        }
+    }
+
+    private void setConnected(boolean value, String status) {
+        connected = value;
+        notifyStatus(status);
+    }
+
+    private void notifyStatus(String status) {
         JSObject event = new JSObject();
         event.put("status", status);
         notifyListeners("connectionStatusChange", event);
-        Log.i(TAG, "Connection status → " + status);
     }
 
-    /**
-     * 通知 JS 层收到手表消息
-     *
-     * 手表端通过 connect.send({data}) 发送的消息在此接收，
-     * 通过 Capacitor notifyListeners 机制传给 TS 层 → useWatchSync.ts
-     */
-    private void notifyMessageReceived(String messageJson) {
+    private void handleIncomingData(String data) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
         try {
             JSObject event = new JSObject();
-            event.put("data", new JSObject(messageJson));
+            event.put("data", new JSObject(data));
             notifyListeners("messageReceived", event);
-            Log.d(TAG, "Message received → JS layer");
         } catch (JSONException e) {
-            Log.e(TAG, "Failed to parse message JSON: " + e.getMessage());
+            Log.e(TAG, "Invalid message from watch", e);
         }
+    }
+
+    private JSObject failure(String error) {
+        JSObject result = new JSObject();
+        result.put("success", false);
+        result.put("error", error);
+        return result;
     }
 }
