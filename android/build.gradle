@@ -36,6 +36,19 @@ subprojects { subproject ->
             task.kotlinOptions.jvmTarget = '17'
         }
     }
+    subproject.tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = JavaVersion.VERSION_17.toString()
+        targetCompatibility = JavaVersion.VERSION_17.toString()
+    }
+    subproject.afterEvaluate {
+        def androidExtension = subproject.extensions.findByName('android')
+        if (androidExtension != null) {
+            androidExtension.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+    }
 }
 task clean(type: Delete) {
     delete rootProject.buildDir
