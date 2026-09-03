@@ -7,7 +7,7 @@ interface ThemeContextValue {
 }
 
 const THEME_STORAGE_KEY = 'fitness-theme'
-const ThemeContext = createContext<ThemeContextValue | null>(null)
+export const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function isThemeId(value: string | null): value is ThemeId {
   return APP_THEMES.some(theme => theme.id === value)
