@@ -9,7 +9,8 @@ import { useWatchSync } from '../hooks/useWatchSync'
 import { SYNC_STATUS } from '../services/xlink-protocol'
 import Modal from '../components/Modal'
 import type { ImportResult } from '../hooks/useDataIO'
-import { APP_THEMES, useTheme } from '../contexts/ThemeContext'
+import { APP_THEMES } from '../contexts/ThemeConfig'
+import { useTheme } from '../contexts/useTheme'
 
 const GUIDE_STEPS = [
   {
