@@ -1,13 +1,8 @@
-import { createContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { APP_THEMES, type ThemeId } from './ThemeConfig'
-
-interface ThemeContextValue {
-  themeId: ThemeId
-  setTheme: (themeId: ThemeId) => void
-}
+import { ThemeContext } from './ThemeContext'
 
 const THEME_STORAGE_KEY = 'fitness-theme'
-export const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function isThemeId(value: string | null): value is ThemeId {
   return APP_THEMES.some(theme => theme.id === value)
