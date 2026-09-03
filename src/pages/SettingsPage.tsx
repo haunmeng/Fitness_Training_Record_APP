@@ -299,7 +299,7 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-sm font-medium text-text2 uppercase tracking-wider mb-3">关于</h2>
         <div className="bg-surface border border-border rounded-xl p-4">
-          <p className="text-sm text-text2">健身训练记录 v1.1.0</p>
+          <p className="text-sm text-text2">健身训练记录 v1.2.0</p>
           <p className="text-xs text-text3 mt-1">本地存储 · 无需联网 · 数据安全</p>
         </div>
       </div>
