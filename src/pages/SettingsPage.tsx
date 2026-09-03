@@ -2,13 +2,14 @@ import { useState, useRef } from 'react'
 import {
   Download, Upload, HelpCircle,
   Plus, Dumbbell, Play, History as HistoryIcon,
-  CheckCircle, AlertCircle, Watch, RefreshCw,
+  CheckCircle, AlertCircle, Watch, RefreshCw, Palette, Check,
 } from 'lucide-react'
 import { useDataIO } from '../hooks/useDataIO'
 import { useWatchSync } from '../hooks/useWatchSync'
 import { SYNC_STATUS } from '../services/xlink-protocol'
 import Modal from '../components/Modal'
 import type { ImportResult } from '../hooks/useDataIO'
+import { APP_THEMES, useTheme } from '../contexts/ThemeContext'
 
 const GUIDE_STEPS = [
   {
@@ -19,7 +20,7 @@ const GUIDE_STEPS = [
   {
     icon: Dumbbell,
     title: '选择项目开始训练',
-    desc: '进入「训练」页面，从项目列表中选择今天要练的项目。也可以直接在训练页面快速创建新项目。',
+    desc: '进入「训练」页面，从项目列表中选择今天要练的项目。新项目请在「项目」页面集中创建和管理。',
   },
   {
     icon: Play,
@@ -39,6 +40,7 @@ const GUIDE_STEPS = [
 ]
 
 export default function SettingsPage() {
+  const { themeId, setTheme } = useTheme()
   const { downloadJSON, importData } = useDataIO()
   const {
     status: syncStatus,
@@ -142,6 +144,41 @@ export default function SettingsPage() {
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto">
       <h1 className="text-2xl font-bold text-text mb-6">设置</h1>
+
+      <div className="mb-6">
+        <h2 className="text-sm font-medium text-text2 uppercase tracking-wider mb-3">主题配色</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {APP_THEMES.map(theme => {
+            const selected = theme.id === themeId
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => setTheme(theme.id)}
+                className={`relative rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${
+                  selected ? 'border-accent bg-surface2' : 'border-border bg-surface active:bg-surface2'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${theme.accent}26` }}>
+                      <Palette size={15} style={{ color: theme.accent }} />
+                    </span>
+                    <span className="text-sm font-medium text-text">{theme.name}</span>
+                  </div>
+                  {selected && <span className="w-5 h-5 rounded-full bg-accent text-black flex items-center justify-center"><Check size={13} /></span>}
+                </div>
+                <p className="text-xs text-text3 mt-2">{theme.description}</p>
+                <div className="flex gap-1.5 mt-3">
+                  <span className="w-5 h-1.5 rounded-full" style={{ backgroundColor: theme.accent }} />
+                  <span className="w-5 h-1.5 rounded-full" style={{ backgroundColor: theme.accent2 }} />
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-xs text-text3 mt-2">配色会自动保存，并应用到整个应用。</p>
+      </div>
 
       {/* Usage Guide */}
       <div className="mb-6">
@@ -299,7 +336,7 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-sm font-medium text-text2 uppercase tracking-wider mb-3">关于</h2>
         <div className="bg-surface border border-border rounded-xl p-4">
-          <p className="text-sm text-text2">健身训练记录 v1.2.0</p>
+          <p className="text-sm text-text2">健身训练记录 v1.3.0</p>
           <p className="text-xs text-text3 mt-1">本地存储 · 无需联网 · 数据安全</p>
         </div>
       </div>

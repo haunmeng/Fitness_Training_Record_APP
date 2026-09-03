@@ -8,16 +8,13 @@ import { useExercises } from '../hooks/useExercises'
 import { useWorkout } from '../hooks/useWorkout'
 import WorkoutSetTracker from '../components/WorkoutSetTracker'
 import Modal from '../components/Modal'
-import {
-  EXERCISE_TAGS,
-  EXERCISE_TAG_ALL,
-  EXERCISE_TAG_UNCATEGORIZED,
-  normalizeExerciseTags,
-} from '../types'
+import { EXERCISE_TAGS, EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED } from '../types'
+import { useCustomExerciseTags } from '../hooks/useCustomExerciseTags'
 
 export default function WorkoutPage() {
   const navigate = useNavigate()
-  const { exercises, addExercise } = useExercises()
+  const { exercises } = useExercises()
+  const { customTags } = useCustomExerciseTags()
   const {
     sessionId,
     activeExercises,
@@ -31,8 +28,6 @@ export default function WorkoutPage() {
 
   // Exercise picker state
   const [showPicker, setShowPicker] = useState(false)
-  const [quickAddName, setQuickAddName] = useState('')
-  const [quickAddTags, setQuickAddTags] = useState<string[]>([])
   const [pickerTag, setPickerTag] = useState(EXERCISE_TAG_ALL)
 
   // Current input state
@@ -54,6 +49,7 @@ export default function WorkoutPage() {
     : pickerTag === EXERCISE_TAG_UNCATEGORIZED
       ? exercises.filter(exercise => !exercise.tags?.length)
       : exercises.filter(exercise => exercise.tags?.includes(pickerTag))
+  const pickerTags = [...EXERCISE_TAGS, ...customTags.map(tag => tag.name)]
 
   // Auto-start session
   useEffect(() => {
@@ -92,15 +88,6 @@ export default function WorkoutPage() {
     if (exercise.workingReps) setReps(exercise.workingReps.toString())
     else setReps('')
     setTimeout(() => repsInputRef.current?.focus(), 100)
-  }
-
-  const handleQuickAdd = async () => {
-    const name = quickAddName.trim()
-    if (!name) return
-    const exerciseId = await addExercise(name, { tags: normalizeExerciseTags(quickAddTags) })
-    setQuickAddName('')
-    setQuickAddTags([])
-    await handleSelectExercise(exerciseId as number)
   }
 
   const handleAddSet = async () => {
@@ -318,50 +305,10 @@ export default function WorkoutPage() {
       </div>
 
       {/* Exercise Picker Modal */}
-      <Modal open={showPicker} onClose={() => { setShowPicker(false); setQuickAddName(''); setQuickAddTags([]); setPickerTag(EXERCISE_TAG_ALL) }} title="选择训练项目">
-        {/* Quick Add */}
-        <div className="flex gap-2 mb-3">
-          <input
-            type="text"
-            value={quickAddName}
-            onChange={e => setQuickAddName(e.target.value)}
-            placeholder="快速创建新项目..."
-            className="flex-1 bg-surface2 border border-border rounded-lg px-3 py-2.5 text-text text-sm placeholder-text3 focus:outline-none focus:border-accent transition-colors"
-            onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-          />
-          <button
-            onClick={handleQuickAdd}
-            disabled={!quickAddName.trim()}
-            className="px-4 py-2.5 bg-accent text-black text-sm font-semibold rounded-lg disabled:opacity-30 transition-opacity"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-
-        <div className="mb-3">
-          <p className="text-xs text-text3 mb-2">新项目标签（可选）</p>
-          <div className="flex flex-wrap gap-2">
-            {EXERCISE_TAGS.map(tag => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => setQuickAddTags(current => current.includes(tag)
-                  ? current.filter(item => item !== tag)
-                  : [...current, tag])}
-                className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                  quickAddTags.includes(tag)
-                    ? 'bg-accent text-black border-accent'
-                    : 'bg-surface2 text-text3 border-border hover:border-accent/50'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <Modal open={showPicker} onClose={() => { setShowPicker(false); setPickerTag(EXERCISE_TAG_ALL) }} title="选择训练项目">
+        <p className="text-xs text-text3 mb-2">筛选训练项目</p>
         <div className="flex flex-wrap gap-2 mb-3">
-          {[EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED, ...EXERCISE_TAGS].map(tag => (
+          {[EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED, ...pickerTags].map(tag => (
             <button
               key={tag}
               type="button"
