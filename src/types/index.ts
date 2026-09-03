@@ -26,6 +26,13 @@ export interface Exercise {
   createdAt: Date;
 }
 
+export interface CustomExerciseTag {
+  id?: number;
+  name: string;
+  color: string;
+  createdAt: Date;
+}
+
 export interface WorkoutSession {
   id?: number;
   date: Date;
