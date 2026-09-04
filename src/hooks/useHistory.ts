@@ -18,12 +18,13 @@ export function useHistory() {
           .toArray()
 
         // Group sets by exercise
-        const exerciseGroups: Record<number, { name: string; sets: typeof sets }> = {}
+        const exerciseGroups: Record<number, { name: string; tags: string[]; sets: typeof sets }> = {}
         for (const set of sets) {
           if (!exerciseGroups[set.exerciseId]) {
             const exercise = await db.exercises.get(set.exerciseId)
             exerciseGroups[set.exerciseId] = {
               name: exercise?.name ?? '已删除',
+              tags: exercise?.tags ?? [],
               sets: [],
             }
           }
@@ -56,13 +57,14 @@ export function useSessionDetail(sessionId: number) {
       .toArray()
 
     // Group by exercise
-    const exerciseGroups: Record<number, { name: string; sets: typeof sets }> = {}
+    const exerciseGroups: Record<number, { name: string; tags: string[]; sets: typeof sets }> = {}
     for (const set of sets) {
       if (!exerciseGroups[set.exerciseId]) {
         const exercise = await db.exercises.get(set.exerciseId)
-        exerciseGroups[set.exerciseId] = {
-          name: exercise?.name ?? '已删除',
-          sets: [],
+          exerciseGroups[set.exerciseId] = {
+            name: exercise?.name ?? '已删除',
+            tags: exercise?.tags ?? [],
+            sets: [],
         }
       }
       exerciseGroups[set.exerciseId].sets.push(set)

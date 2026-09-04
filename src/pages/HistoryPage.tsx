@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp, Dumbbell, BarChart3, Trash2 } from 'lucide-react'
 import { useHistory } from '../hooks/useHistory'
+import { useCustomExerciseTags } from '../hooks/useCustomExerciseTags'
 import Modal from '../components/Modal'
+import { EXERCISE_TAGS, EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED } from '../types'
 
 type ExerciseStats = {
   id: number
@@ -10,13 +12,15 @@ type ExerciseStats = {
   maxReps: number
   sessionCount: number
   lastDate: Date
+  tags: string[]
 }
 
 export default function HistoryPage() {
   const { sessions, deleteSession } = useHistory()
+  const { customTags } = useCustomExerciseTags()
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [showStats, setShowStats] = useState(false)
-  const [stats, setStats] = useState<ExerciseStats[]>([])
+  const [statsTag, setStatsTag] = useState(EXERCISE_TAG_ALL)
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
 
   const formatDate = (d: Date | string) => {
@@ -47,7 +51,7 @@ export default function HistoryPage() {
     setExpandedId(expandedId === id ? null : id)
   }
 
-  const computeStats = () => {
+  const stats = useMemo(() => {
     const exerciseMap: Record<number, ExerciseStats> = {}
 
     for (const session of sessions) {
@@ -62,6 +66,7 @@ export default function HistoryPage() {
             maxReps: 0,
             sessionCount: 0,
             lastDate: new Date(0),
+            tags: group.tags,
           }
         }
         exerciseMap[eId].sessionCount++
@@ -79,7 +84,19 @@ export default function HistoryPage() {
       }
     }
 
-    setStats(Object.values(exerciseMap).sort((a, b) => b.sessionCount - a.sessionCount))
+    return Object.values(exerciseMap).sort((a, b) => b.sessionCount - a.sessionCount)
+  }, [sessions])
+
+  const statsTags = [...EXERCISE_TAGS, ...customTags.map(tag => tag.name)]
+  const tagColors = Object.fromEntries(customTags.map(tag => [tag.name, tag.color]))
+  const filteredStats = statsTag === EXERCISE_TAG_ALL
+    ? stats
+    : statsTag === EXERCISE_TAG_UNCATEGORIZED
+      ? stats.filter(stat => stat.tags.length === 0)
+      : stats.filter(stat => stat.tags.includes(statsTag))
+
+  const openStats = () => {
+    setStatsTag(EXERCISE_TAG_ALL)
     setShowStats(true)
   }
 
@@ -93,7 +110,7 @@ export default function HistoryPage() {
         </div>
         {sessions.length > 0 && (
           <button
-            onClick={computeStats}
+            onClick={openStats}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface border border-border text-text2 text-sm active:bg-surface2 transition-colors"
           >
             <BarChart3 size={16} />
@@ -198,10 +215,34 @@ export default function HistoryPage() {
       {/* Stats Modal */}
       <Modal open={showStats} onClose={() => setShowStats(false)} title="训练统计">
         <div className="space-y-3">
-          {stats.length === 0 ? (
-            <p className="text-text3 text-sm text-center py-4">暂无统计数据</p>
+          <div>
+            <p className="text-xs text-text3 mb-2">按标签筛选项目</p>
+            <div className="flex flex-wrap gap-2">
+              {[EXERCISE_TAG_ALL, EXERCISE_TAG_UNCATEGORIZED, ...statsTags].map(tag => {
+                const active = statsTag === tag
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setStatsTag(tag)}
+                    className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                      active
+                        ? 'bg-accent text-black border-accent'
+                        : 'bg-surface2 text-text3 border-border hover:border-accent/50'
+                    }`}
+                    style={active && tagColors[tag] ? { backgroundColor: tagColors[tag], borderColor: tagColors[tag] } : undefined}
+                  >
+                    {tag}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {filteredStats.length === 0 ? (
+            <p className="text-text3 text-sm text-center py-4">该标签下暂无统计数据</p>
           ) : (
-            stats.map((stat) => (
+            filteredStats.map((stat) => (
               <div
                 key={stat.id}
                 className="bg-surface2 border border-border rounded-lg p-3"
@@ -210,6 +251,20 @@ export default function HistoryPage() {
                   <h4 className="font-medium text-text text-sm">{stat.name}</h4>
                   <span className="text-xs text-text3">{stat.sessionCount} 次训练</span>
                 </div>
+                {stat.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {stat.tags.slice(0, 2).map(tag => (
+                      <span
+                        key={tag}
+                        className="px-1.5 py-0.5 rounded-full text-[10px] bg-accent/10 text-accent border border-accent/30"
+                        style={tagColors[tag] ? { color: tagColors[tag], borderColor: tagColors[tag] } : undefined}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {stat.tags.length > 2 && <span className="text-[10px] text-text3">+{stat.tags.length - 2}</span>}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-text3">最大重量: </span>
