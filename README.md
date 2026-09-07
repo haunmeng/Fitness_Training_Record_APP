@@ -1,73 +1,62 @@
-# React + TypeScript + Vite
+# Fitness Training Record APP
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一款面向 Android 手机的本地健身训练记录应用。数据默认保存在设备本地，无需联网即可记录训练项目、训练组数和历史统计。
 
-Currently, two official plugins are available:
+## 功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- 创建和编辑训练项目，记录最大重量与日常训练参考重量
+- 使用内置标签或自定义标签管理训练项目
+- 项目支持左滑删除、批量管理和标签筛选
+- 训练过程中按组记录重量、次数和组间休息时间
+- 查看训练历史与项目训练统计，并按标签快速筛选统计结果
+- 支持导出和导入本地 JSON 数据
+- 支持可选的手表同步桥接功能
+- 支持在设置中切换主题配色
 
-## React Compiler
+## 技术栈
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React + TypeScript + Vite
+- Capacitor Android
+- Dexie / IndexedDB 本地数据存储
+- Tailwind CSS
 
-## Expanding the ESLint configuration
+## 本地运行
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+生产构建：
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
 ```
+
+## 构建 Android APK
+
+需要安装 Node.js、Android SDK 和 Java 17，并配置好 Android 构建环境。
+
+```bash
+npm install
+npm run build
+npx cap sync android
+cd android
+gradlew assembleDebug
+```
+
+生成的调试 APK 位于：
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+手表同步功能需要额外提供 vivo 智能终端设备 SDK 的 `device-rpc.aar`，并放入 `android/app/libs/`；没有该 SDK 时，应用仍可使用手机端的本地训练记录功能。
+
+## 数据与隐私
+
+应用默认不上传训练数据。导出的 JSON 文件由用户自行保存和管理，请注意保护其中可能包含的个人训练信息。
+
+## License
+
+本项目采用 MIT License，详见 [LICENSE](./LICENSE)。
