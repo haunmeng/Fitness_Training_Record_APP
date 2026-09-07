@@ -1,0 +1,2 @@
+# Fitness_Training_Record_APP
+一款由AI工具开发的手机本地的健身训练记录软件
